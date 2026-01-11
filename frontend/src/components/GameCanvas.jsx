@@ -37,7 +37,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
       const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      const isSmallScreen = window.innerWidth < 768;
+      const isSmallScreen = window.innerWidth < 1024;
       return isMobileDevice || (isTouchDevice && isSmallScreen);
     };
     setIsMobile(checkMobile());
@@ -75,24 +75,40 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    
+    // Set canvas size based on window size
+    const setCanvasSize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      // Support for high DPI displays
+      const dpr = window.devicePixelRatio || 1;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    
+    setCanvasSize();
 
     // Initialize player
     gameObjectsRef.current.player = {
-      x: canvas.width / 2,
-      y: canvas.height - 150,
+      x: window.innerWidth / 2,
+      y: window.innerHeight - 150,
       width: 30,
       height: 40,
       speed: 5,
-      shootCooldown: 0
+      shootCooldown: 0,
+      angle: 0, // Rotation angle
+      targetAngle: 0 // Target rotation for smooth turning
     };
 
     // Initialize stars
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 150; i++) {
       gameObjectsRef.current.stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
         size: Math.random() * 2 + 1,
         speed: Math.random() * 2 + 0.5
       });
@@ -100,11 +116,10 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
     // Handle resize
     const handleResize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      setCanvasSize();
       if (gameObjectsRef.current.player) {
-        gameObjectsRef.current.player.x = Math.min(gameObjectsRef.current.player.x, canvas.width - 50);
-        gameObjectsRef.current.player.y = Math.min(gameObjectsRef.current.player.y, canvas.height - 50);
+        gameObjectsRef.current.player.x = Math.min(gameObjectsRef.current.player.x, window.innerWidth - 50);
+        gameObjectsRef.current.player.y = Math.min(gameObjectsRef.current.player.y, window.innerHeight - 50);
       }
     };
 
@@ -167,15 +182,15 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       
       if (spawnSide < 0.5) {
         // Spawn from top
-        x = BORDER_WIDTH + Math.random() * (canvas.width - size - BORDER_WIDTH * 2);
+        x = BORDER_WIDTH + Math.random() * (window.innerWidth - size - BORDER_WIDTH * 2);
         y = BORDER_WIDTH - size;
-        vx = (Math.random() - 0.5) * 3; // Random horizontal velocity
+        vx = (Math.random() - 0.5) * 3;
         vy = 2 + Math.random() * (gameStatsRef.current.level * 0.3);
       } else {
         // Spawn from sides
-        x = Math.random() < 0.5 ? BORDER_WIDTH - size : canvas.width - BORDER_WIDTH;
-        y = BORDER_WIDTH + Math.random() * (canvas.height / 2);
-        vx = x < canvas.width / 2 ? 2 + Math.random() * 2 : -(2 + Math.random() * 2);
+        x = Math.random() < 0.5 ? BORDER_WIDTH - size : window.innerWidth - BORDER_WIDTH;
+        y = BORDER_WIDTH + Math.random() * (window.innerHeight / 2);
+        vx = x < window.innerWidth / 2 ? 2 + Math.random() * 2 : -(2 + Math.random() * 2);
         vy = 1 + Math.random() * 2;
       }
       
@@ -184,8 +199,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         y,
         width: size,
         height: size,
-        vx, // velocity x
-        vy, // velocity y
+        vx,
+        vy,
         type,
         health: 1,
         rotation: 0
@@ -195,12 +210,18 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     const shoot = () => {
       const player = gameObjectsRef.current.player;
       if (player.shootCooldown <= 0) {
+        // Calculate bullet direction based on player rotation
+        const bulletAngle = player.angle - Math.PI / 2; // -90 degrees because 0 is right
+        const bulletSpeed = 10;
+        
         gameObjectsRef.current.bullets.push({
           x: player.x,
-          y: player.y - 20,
+          y: player.y,
+          vx: Math.cos(bulletAngle) * bulletSpeed,
+          vy: Math.sin(bulletAngle) * bulletSpeed,
           width: 6,
           height: 15,
-          speed: 10
+          angle: player.angle
         });
         player.shootCooldown = 10;
       }
@@ -230,41 +251,43 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     const gameLoop = () => {
       // Clear canvas
       ctx.fillStyle = 'rgba(5, 8, 13, 1)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
       // Draw border
       ctx.strokeStyle = BORDER_COLOR;
       ctx.lineWidth = BORDER_WIDTH;
       ctx.shadowColor = BORDER_COLOR;
       ctx.shadowBlur = 20;
-      ctx.strokeRect(BORDER_WIDTH / 2, BORDER_WIDTH / 2, canvas.width - BORDER_WIDTH, canvas.height - BORDER_WIDTH);
+      ctx.strokeRect(BORDER_WIDTH / 2, BORDER_WIDTH / 2, window.innerWidth - BORDER_WIDTH, window.innerHeight - BORDER_WIDTH);
       ctx.shadowBlur = 0;
 
       // Draw stars
       gameObjectsRef.current.stars.forEach(star => {
         star.y += star.speed;
-        if (star.y > canvas.height - BORDER_WIDTH) {
+        if (star.y > window.innerHeight - BORDER_WIDTH) {
           star.y = BORDER_WIDTH;
-          star.x = BORDER_WIDTH + Math.random() * (canvas.width - BORDER_WIDTH * 2);
+          star.x = BORDER_WIDTH + Math.random() * (window.innerWidth - BORDER_WIDTH * 2);
         }
         ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.5})`;
         ctx.fillRect(star.x, star.y, star.size, star.size);
       });
 
       const player = gameObjectsRef.current.player;
+      let moveX = 0;
+      let moveY = 0;
 
       // Update player position (keyboard)
       if (keysRef.current['arrowleft'] || keysRef.current['a']) {
-        player.x -= player.speed;
+        moveX -= 1;
       }
       if (keysRef.current['arrowright'] || keysRef.current['d']) {
-        player.x += player.speed;
+        moveX += 1;
       }
       if (keysRef.current['arrowup'] || keysRef.current['w']) {
-        player.y -= player.speed;
+        moveY -= 1;
       }
       if (keysRef.current['arrowdown'] || keysRef.current['s']) {
-        player.y += player.speed;
+        moveY += 1;
       }
       if (keysRef.current[' '] || keysRef.current['enter']) {
         shoot();
@@ -272,9 +295,23 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
       // Update player position (joystick)
       if (joystickRef.current.x !== 0 || joystickRef.current.y !== 0) {
-        player.x += joystickRef.current.x * player.speed;
-        player.y += joystickRef.current.y * player.speed;
+        moveX += joystickRef.current.x;
+        moveY += joystickRef.current.y;
       }
+
+      // Calculate rotation based on movement
+      if (moveX !== 0 || moveY !== 0) {
+        player.targetAngle = Math.atan2(moveY, moveX) + Math.PI / 2; // +90 degrees
+        player.x += moveX * player.speed;
+        player.y += moveY * player.speed;
+      }
+
+      // Smooth rotation
+      let angleDiff = player.targetAngle - player.angle;
+      // Normalize angle difference to -PI to PI
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      player.angle += angleDiff * 0.2; // Smooth interpolation
 
       if (shootingRef.current) {
         shoot();
@@ -282,47 +319,54 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
       // Check border collision for player
       if (player.x - player.width / 2 <= BORDER_WIDTH ||
-          player.x + player.width / 2 >= canvas.width - BORDER_WIDTH ||
+          player.x + player.width / 2 >= window.innerWidth - BORDER_WIDTH ||
           player.y - player.height / 2 <= BORDER_WIDTH ||
-          player.y + player.height / 2 >= canvas.height - BORDER_WIDTH) {
+          player.y + player.height / 2 >= window.innerHeight - BORDER_WIDTH) {
         createParticles(player.x, player.y, colors.player);
         onGameOver(gameStatsRef.current.score);
         return;
       }
 
       // Keep player in bounds
-      player.x = Math.max(BORDER_WIDTH + player.width / 2, Math.min(canvas.width - BORDER_WIDTH - player.width / 2, player.x));
-      player.y = Math.max(BORDER_WIDTH + player.height / 2, Math.min(canvas.height - BORDER_WIDTH - player.height / 2, player.y));
+      player.x = Math.max(BORDER_WIDTH + player.width / 2, Math.min(window.innerWidth - BORDER_WIDTH - player.width / 2, player.x));
+      player.y = Math.max(BORDER_WIDTH + player.height / 2, Math.min(window.innerHeight - BORDER_WIDTH - player.height / 2, player.y));
 
-      // Draw player (triangle spaceship with glow)
+      // Draw player (triangle spaceship with rotation and glow)
       ctx.save();
+      ctx.translate(player.x, player.y);
+      ctx.rotate(player.angle);
       ctx.shadowColor = colors.player;
       ctx.shadowBlur = 25;
       ctx.fillStyle = colors.player;
       ctx.beginPath();
-      ctx.moveTo(player.x, player.y - player.height / 2);
-      ctx.lineTo(player.x - player.width / 2, player.y + player.height / 2);
-      ctx.lineTo(player.x + player.width / 2, player.y + player.height / 2);
+      ctx.moveTo(0, -player.height / 2);
+      ctx.lineTo(-player.width / 2, player.height / 2);
+      ctx.lineTo(player.width / 2, player.height / 2);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
 
       // Update and draw bullets
       gameObjectsRef.current.bullets = gameObjectsRef.current.bullets.filter(bullet => {
-        bullet.y -= bullet.speed;
+        bullet.x += bullet.vx;
+        bullet.y += bullet.vy;
 
         ctx.save();
+        ctx.translate(bullet.x, bullet.y);
+        ctx.rotate(bullet.angle);
         ctx.shadowColor = colors.bullet;
         ctx.shadowBlur = 20;
         ctx.fillStyle = colors.bullet;
         
         // Draw bullet as a glowing oval
         ctx.beginPath();
-        ctx.ellipse(bullet.x, bullet.y, bullet.width, bullet.height, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, bullet.width, bullet.height, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        return bullet.y > BORDER_WIDTH;
+        // Remove bullets that go off screen
+        return bullet.x > BORDER_WIDTH && bullet.x < window.innerWidth - BORDER_WIDTH &&
+               bullet.y > BORDER_WIDTH && bullet.y < window.innerHeight - BORDER_WIDTH;
       });
 
       // Update cooldowns
@@ -343,19 +387,18 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         enemy.rotation += 0.05;
 
         // Bounce off borders (zigzag effect)
-        if (enemy.x <= BORDER_WIDTH || enemy.x + enemy.width >= canvas.width - BORDER_WIDTH) {
-          enemy.vx *= -1; // Reverse horizontal direction
-          // Add some randomness to make it more interesting
+        if (enemy.x <= BORDER_WIDTH || enemy.x + enemy.width >= window.innerWidth - BORDER_WIDTH) {
+          enemy.vx *= -1;
           enemy.vx += (Math.random() - 0.5) * 0.5;
         }
-        if (enemy.y <= BORDER_WIDTH || enemy.y + enemy.height >= canvas.height - BORDER_WIDTH) {
-          enemy.vy *= -1; // Reverse vertical direction
+        if (enemy.y <= BORDER_WIDTH || enemy.y + enemy.height >= window.innerHeight - BORDER_WIDTH) {
+          enemy.vy *= -1;
           enemy.vy += (Math.random() - 0.5) * 0.5;
         }
 
         // Keep enemies in bounds
-        enemy.x = Math.max(BORDER_WIDTH, Math.min(canvas.width - BORDER_WIDTH - enemy.width, enemy.x));
-        enemy.y = Math.max(BORDER_WIDTH, Math.min(canvas.height - BORDER_WIDTH - enemy.height, enemy.y));
+        enemy.x = Math.max(BORDER_WIDTH, Math.min(window.innerWidth - BORDER_WIDTH - enemy.width, enemy.x));
+        enemy.y = Math.max(BORDER_WIDTH, Math.min(window.innerHeight - BORDER_WIDTH - enemy.height, enemy.y));
 
         // Draw hexagon enemy with glow
         ctx.save();
@@ -409,7 +452,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
           }
         }
 
-        return true; // Keep enemy
+        return true;
       });
 
       // Update combo timer
@@ -476,6 +519,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       <canvas
         ref={canvasRef}
         className="w-full h-full"
+        style={{ touchAction: 'none' }}
       />
       
       {/* Controls */}
