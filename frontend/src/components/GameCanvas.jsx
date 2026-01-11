@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Joystick from './Joystick';
 import ShootButton from './ShootButton';
+import LevelCompleteScreen from './LevelCompleteScreen';
 
-const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate, gameState }) => {
+const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onGameOver, gameState }) => {
   const canvasRef = useRef(null);
   const gameLoopRef = useRef(null);
   const gameObjectsRef = useRef({
@@ -23,10 +24,13 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
     enemySpawnTimer: 0,
     levelProgress: 0,
     enemiesKilled: 0,
-    enemiesNeededForLevel: 10
+    enemiesNeededForLevel: 5
   });
 
   const [isMobile, setIsMobile] = useState(false);
+  const [showLevelComplete, setShowLevelComplete] = useState(false);
+  const [completedLevel, setCompletedLevel] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -54,6 +58,15 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
 
   const handleShootEnd = () => {
     shootingRef.current = false;
+  };
+
+  const handleNextLevel = () => {
+    setShowLevelComplete(false);
+    setIsPaused(false);
+    gameStatsRef.current.enemiesKilled = 0;
+    // Clear all enemies and bullets
+    gameObjectsRef.current.enemies = [];
+    gameObjectsRef.current.bullets = [];
   };
 
   // Initialize game
@@ -123,7 +136,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
 
   // Game loop
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || isPaused) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -131,6 +144,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
 
     const BORDER_WIDTH = 10;
     const BORDER_COLOR = '#00D9FF';
+    const ENEMY_SPAWN_INTERVAL = 120; // 2 seconds at 60fps
 
     const colors = {
       player: '#00D9FF',
@@ -145,14 +159,33 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
     const spawnEnemy = () => {
       const types = ['enemy1', 'enemy2', 'enemy3', 'enemy4'];
       const type = types[Math.floor(Math.random() * types.length)];
-      const size = 30 + Math.random() * 20;
+      const size = 35 + Math.random() * 15;
+      
+      // Random spawn position (top or sides)
+      let x, y, vx, vy;
+      const spawnSide = Math.random();
+      
+      if (spawnSide < 0.5) {
+        // Spawn from top
+        x = BORDER_WIDTH + Math.random() * (canvas.width - size - BORDER_WIDTH * 2);
+        y = BORDER_WIDTH - size;
+        vx = (Math.random() - 0.5) * 3; // Random horizontal velocity
+        vy = 2 + Math.random() * (gameStatsRef.current.level * 0.3);
+      } else {
+        // Spawn from sides
+        x = Math.random() < 0.5 ? BORDER_WIDTH - size : canvas.width - BORDER_WIDTH;
+        y = BORDER_WIDTH + Math.random() * (canvas.height / 2);
+        vx = x < canvas.width / 2 ? 2 + Math.random() * 2 : -(2 + Math.random() * 2);
+        vy = 1 + Math.random() * 2;
+      }
       
       gameObjectsRef.current.enemies.push({
-        x: BORDER_WIDTH + Math.random() * (canvas.width - size - BORDER_WIDTH * 2),
-        y: BORDER_WIDTH - size,
+        x,
+        y,
         width: size,
         height: size,
-        speed: 2 + Math.random() * (gameStatsRef.current.level * 0.5),
+        vx, // velocity x
+        vy, // velocity y
         type,
         health: 1,
         rotation: 0
@@ -295,18 +328,34 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
       // Update cooldowns
       if (player.shootCooldown > 0) player.shootCooldown--;
 
-      // Spawn enemies
+      // Spawn enemies every 2 seconds
       gameStatsRef.current.enemySpawnTimer++;
-      const spawnRate = Math.max(60 - gameStatsRef.current.level * 5, 25);
-      if (gameStatsRef.current.enemySpawnTimer > spawnRate) {
+      if (gameStatsRef.current.enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
         spawnEnemy();
         gameStatsRef.current.enemySpawnTimer = 0;
       }
 
-      // Update and draw enemies
+      // Update and draw enemies with zigzag movement
       gameObjectsRef.current.enemies = gameObjectsRef.current.enemies.filter(enemy => {
-        enemy.y += enemy.speed;
+        // Move enemy
+        enemy.x += enemy.vx;
+        enemy.y += enemy.vy;
         enemy.rotation += 0.05;
+
+        // Bounce off borders (zigzag effect)
+        if (enemy.x <= BORDER_WIDTH || enemy.x + enemy.width >= canvas.width - BORDER_WIDTH) {
+          enemy.vx *= -1; // Reverse horizontal direction
+          // Add some randomness to make it more interesting
+          enemy.vx += (Math.random() - 0.5) * 0.5;
+        }
+        if (enemy.y <= BORDER_WIDTH || enemy.y + enemy.height >= canvas.height - BORDER_WIDTH) {
+          enemy.vy *= -1; // Reverse vertical direction
+          enemy.vy += (Math.random() - 0.5) * 0.5;
+        }
+
+        // Keep enemies in bounds
+        enemy.x = Math.max(BORDER_WIDTH, Math.min(canvas.width - BORDER_WIDTH - enemy.width, enemy.x));
+        enemy.y = Math.max(BORDER_WIDTH, Math.min(canvas.height - BORDER_WIDTH - enemy.height, enemy.y));
 
         // Draw hexagon enemy with glow
         ctx.save();
@@ -360,7 +409,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
           }
         }
 
-        return enemy.y < canvas.height - BORDER_WIDTH;
+        return true; // Keep enemy
       });
 
       // Update combo timer
@@ -373,15 +422,20 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
         }
       }
 
-      // Level progression and progress bar
-      const progress = (gameStatsRef.current.enemiesKilled % gameStatsRef.current.enemiesNeededForLevel) / gameStatsRef.current.enemiesNeededForLevel;
+      // Level progression - enemies needed = level * 5
+      const enemiesNeeded = gameStatsRef.current.level * 5;
+      const progress = (gameStatsRef.current.enemiesKilled % enemiesNeeded) / enemiesNeeded;
       gameStatsRef.current.levelProgress = progress;
       onProgressUpdate(progress * 100);
 
-      if (gameStatsRef.current.enemiesKilled >= gameStatsRef.current.level * gameStatsRef.current.enemiesNeededForLevel) {
+      // Check if level is complete
+      if (gameStatsRef.current.enemiesKilled >= gameStatsRef.current.level * 5) {
+        setIsPaused(true);
+        setCompletedLevel(gameStatsRef.current.level);
+        setShowLevelComplete(true);
         gameStatsRef.current.level++;
         onLevelUpdate(gameStatsRef.current.level);
-        gameStatsRef.current.enemiesNeededForLevel += 5; // Increase enemies needed for next level
+        return;
       }
 
       // Update and draw particles
@@ -415,7 +469,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [gameState, onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate]);
+  }, [gameState, isPaused, onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate]);
 
   return (
     <div className="relative w-full h-full">
@@ -424,12 +478,17 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, o
         className="w-full h-full"
       />
       
-      {/* Mobile/Desktop Controls */}
+      {/* Controls */}
       {(isMobile || true) && (
         <>
           <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
           <ShootButton onShoot={handleShoot} onShootEnd={handleShootEnd} />
         </>
+      )}
+
+      {/* Level Complete Screen */}
+      {showLevelComplete && (
+        <LevelCompleteScreen level={completedLevel} onNextLevel={handleNextLevel} />
       )}
     </div>
   );
