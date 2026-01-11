@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Circle } from 'lucide-react';
+import Joystick from './Joystick';
+import ShootButton from './ShootButton';
 
-const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, gameState }) => {
+const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate, gameState }) => {
   const canvasRef = useRef(null);
   const gameLoopRef = useRef(null);
   const gameObjectsRef = useRef({
@@ -12,7 +13,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     stars: []
   });
   const keysRef = useRef({});
-  const touchRef = useRef({ active: false, x: 0, y: 0, shooting: false });
+  const joystickRef = useRef({ x: 0, y: 0 });
+  const shootingRef = useRef(false);
   const gameStatsRef = useRef({
     score: 0,
     level: 1,
@@ -20,13 +22,13 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     comboTimer: 0,
     enemySpawnTimer: 0,
     levelProgress: 0,
-    enemiesKilled: 0
+    enemiesKilled: 0,
+    enemiesNeededForLevel: 10
   });
 
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    // Better mobile detection
     const checkMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
       const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
@@ -36,6 +38,23 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     };
     setIsMobile(checkMobile());
   }, []);
+
+  // Joystick handlers
+  const handleJoystickMove = (direction) => {
+    joystickRef.current = direction;
+  };
+
+  const handleJoystickStop = () => {
+    joystickRef.current = { x: 0, y: 0 };
+  };
+
+  const handleShoot = () => {
+    shootingRef.current = true;
+  };
+
+  const handleShootEnd = () => {
+    shootingRef.current = false;
+  };
 
   // Initialize game
   useEffect(() => {
@@ -49,7 +68,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     // Initialize player
     gameObjectsRef.current.player = {
       x: canvas.width / 2,
-      y: canvas.height - 100,
+      y: canvas.height - 150,
       width: 30,
       height: 40,
       speed: 5,
@@ -102,39 +121,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     };
   }, []);
 
-  // Touch controls for mobile
-  useEffect(() => {
-    if (!isMobile) return;
-
-    const handleTouchStart = (e) => {
-      const touch = e.touches[0];
-      touchRef.current.active = true;
-      touchRef.current.x = touch.clientX;
-      touchRef.current.y = touch.clientY;
-    };
-
-    const handleTouchMove = (e) => {
-      e.preventDefault();
-      const touch = e.touches[0];
-      touchRef.current.x = touch.clientX;
-      touchRef.current.y = touch.clientY;
-    };
-
-    const handleTouchEnd = () => {
-      touchRef.current.active = false;
-    };
-
-    window.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
-
-    return () => {
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [isMobile]);
-
   // Game loop
   useEffect(() => {
     if (gameState !== 'playing') return;
@@ -142,6 +128,9 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     let animationFrameId;
+
+    const BORDER_WIDTH = 10;
+    const BORDER_COLOR = '#00D9FF';
 
     const colors = {
       player: '#00D9FF',
@@ -159,8 +148,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
       const size = 30 + Math.random() * 20;
       
       gameObjectsRef.current.enemies.push({
-        x: Math.random() * (canvas.width - size),
-        y: -size,
+        x: BORDER_WIDTH + Math.random() * (canvas.width - size - BORDER_WIDTH * 2),
+        y: BORDER_WIDTH - size,
         width: size,
         height: size,
         speed: 2 + Math.random() * (gameStatsRef.current.level * 0.5),
@@ -175,7 +164,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
       if (player.shootCooldown <= 0) {
         gameObjectsRef.current.bullets.push({
           x: player.x,
-          y: player.y,
+          y: player.y - 20,
           width: 6,
           height: 15,
           speed: 10
@@ -185,14 +174,14 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
     };
 
     const createParticles = (x, y, color) => {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 15; i++) {
         gameObjectsRef.current.particles.push({
           x,
           y,
-          vx: (Math.random() - 0.5) * 8,
-          vy: (Math.random() - 0.5) * 8,
-          size: Math.random() * 4 + 2,
-          life: 30,
+          vx: (Math.random() - 0.5) * 10,
+          vy: (Math.random() - 0.5) * 10,
+          size: Math.random() * 5 + 2,
+          life: 40,
           color
         });
       }
@@ -210,12 +199,20 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
       ctx.fillStyle = 'rgba(5, 8, 13, 1)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Draw border
+      ctx.strokeStyle = BORDER_COLOR;
+      ctx.lineWidth = BORDER_WIDTH;
+      ctx.shadowColor = BORDER_COLOR;
+      ctx.shadowBlur = 20;
+      ctx.strokeRect(BORDER_WIDTH / 2, BORDER_WIDTH / 2, canvas.width - BORDER_WIDTH, canvas.height - BORDER_WIDTH);
+      ctx.shadowBlur = 0;
+
       // Draw stars
       gameObjectsRef.current.stars.forEach(star => {
         star.y += star.speed;
-        if (star.y > canvas.height) {
-          star.y = 0;
-          star.x = Math.random() * canvas.width;
+        if (star.y > canvas.height - BORDER_WIDTH) {
+          star.y = BORDER_WIDTH;
+          star.x = BORDER_WIDTH + Math.random() * (canvas.width - BORDER_WIDTH * 2);
         }
         ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.5})`;
         ctx.fillRect(star.x, star.y, star.size, star.size);
@@ -240,30 +237,34 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         shoot();
       }
 
-      // Update player position (touch)
-      if (touchRef.current.active) {
-        const dx = touchRef.current.x - player.x;
-        const dy = touchRef.current.y - player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 20) {
-          player.x += (dx / distance) * player.speed;
-          player.y += (dy / distance) * player.speed;
-        }
+      // Update player position (joystick)
+      if (joystickRef.current.x !== 0 || joystickRef.current.y !== 0) {
+        player.x += joystickRef.current.x * player.speed;
+        player.y += joystickRef.current.y * player.speed;
       }
 
-      if (touchRef.current.shooting) {
+      if (shootingRef.current) {
         shoot();
       }
 
+      // Check border collision for player
+      if (player.x - player.width / 2 <= BORDER_WIDTH ||
+          player.x + player.width / 2 >= canvas.width - BORDER_WIDTH ||
+          player.y - player.height / 2 <= BORDER_WIDTH ||
+          player.y + player.height / 2 >= canvas.height - BORDER_WIDTH) {
+        createParticles(player.x, player.y, colors.player);
+        onGameOver(gameStatsRef.current.score);
+        return;
+      }
+
       // Keep player in bounds
-      player.x = Math.max(20, Math.min(canvas.width - 20, player.x));
-      player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+      player.x = Math.max(BORDER_WIDTH + player.width / 2, Math.min(canvas.width - BORDER_WIDTH - player.width / 2, player.x));
+      player.y = Math.max(BORDER_WIDTH + player.height / 2, Math.min(canvas.height - BORDER_WIDTH - player.height / 2, player.y));
 
       // Draw player (triangle spaceship with glow)
       ctx.save();
       ctx.shadowColor = colors.player;
-      ctx.shadowBlur = 20;
+      ctx.shadowBlur = 25;
       ctx.fillStyle = colors.player;
       ctx.beginPath();
       ctx.moveTo(player.x, player.y - player.height / 2);
@@ -279,12 +280,16 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
 
         ctx.save();
         ctx.shadowColor = colors.bullet;
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 20;
         ctx.fillStyle = colors.bullet;
-        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+        
+        // Draw bullet as a glowing oval
+        ctx.beginPath();
+        ctx.ellipse(bullet.x, bullet.y, bullet.width, bullet.height, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
-        return bullet.y > -bullet.height;
+        return bullet.y > BORDER_WIDTH;
       });
 
       // Update cooldowns
@@ -292,7 +297,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
 
       // Spawn enemies
       gameStatsRef.current.enemySpawnTimer++;
-      const spawnRate = Math.max(60 - gameStatsRef.current.level * 5, 20);
+      const spawnRate = Math.max(60 - gameStatsRef.current.level * 5, 25);
       if (gameStatsRef.current.enemySpawnTimer > spawnRate) {
         spawnEnemy();
         gameStatsRef.current.enemySpawnTimer = 0;
@@ -308,9 +313,9 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
         ctx.rotate(enemy.rotation);
         ctx.shadowColor = colors[enemy.type];
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 25;
         ctx.strokeStyle = colors[enemy.type];
-        ctx.fillStyle = colors[enemy.type] + '33';
+        ctx.fillStyle = colors[enemy.type] + '44';
         ctx.lineWidth = 3;
         ctx.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -328,6 +333,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         // Check collision with player
         if (checkCollision(player, enemy)) {
           createParticles(player.x, player.y, colors.player);
+          createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
           onGameOver(gameStatsRef.current.score);
           return false;
         }
@@ -336,11 +342,14 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         for (let bullet of gameObjectsRef.current.bullets) {
           if (checkCollision(bullet, enemy)) {
             createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
-            gameStatsRef.current.score += 10 * gameStatsRef.current.combo;
+            
+            const points = 10 * gameStatsRef.current.combo;
+            gameStatsRef.current.score += points;
             gameStatsRef.current.combo++;
             gameStatsRef.current.comboTimer = 60;
             gameStatsRef.current.enemiesKilled++;
-            onScoreUpdate(10 * gameStatsRef.current.combo);
+            
+            onScoreUpdate(points);
             onComboUpdate(gameStatsRef.current.combo);
             
             // Remove bullet
@@ -351,22 +360,28 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
           }
         }
 
-        return enemy.y < canvas.height + enemy.height;
+        return enemy.y < canvas.height - BORDER_WIDTH;
       });
 
       // Update combo timer
       if (gameStatsRef.current.comboTimer > 0) {
         gameStatsRef.current.comboTimer--;
       } else {
-        gameStatsRef.current.combo = 1;
-        onComboUpdate(1);
+        if (gameStatsRef.current.combo > 1) {
+          gameStatsRef.current.combo = 1;
+          onComboUpdate(1);
+        }
       }
 
-      // Level progression
-      if (gameStatsRef.current.enemiesKilled >= gameStatsRef.current.level * 10) {
+      // Level progression and progress bar
+      const progress = (gameStatsRef.current.enemiesKilled % gameStatsRef.current.enemiesNeededForLevel) / gameStatsRef.current.enemiesNeededForLevel;
+      gameStatsRef.current.levelProgress = progress;
+      onProgressUpdate(progress * 100);
+
+      if (gameStatsRef.current.enemiesKilled >= gameStatsRef.current.level * gameStatsRef.current.enemiesNeededForLevel) {
         gameStatsRef.current.level++;
-        gameStatsRef.current.enemiesKilled = 0;
         onLevelUpdate(gameStatsRef.current.level);
+        gameStatsRef.current.enemiesNeededForLevel += 5; // Increase enemies needed for next level
       }
 
       // Update and draw particles
@@ -374,11 +389,17 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.life--;
+        particle.vx *= 0.98;
+        particle.vy *= 0.98;
 
         ctx.save();
-        ctx.globalAlpha = particle.life / 30;
+        ctx.globalAlpha = particle.life / 40;
+        ctx.shadowColor = particle.color;
+        ctx.shadowBlur = 10;
         ctx.fillStyle = particle.color;
-        ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
         return particle.life > 0;
@@ -394,7 +415,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [gameState, onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver]);
+  }, [gameState, onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate]);
 
   return (
     <div className="relative w-full h-full">
@@ -403,26 +424,11 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, g
         className="w-full h-full"
       />
       
-      {/* Mobile Controls */}
-      {isMobile && (
+      {/* Mobile/Desktop Controls */}
+      {(isMobile || true) && (
         <>
-          {/* Shoot Button */}
-          <button
-            className="absolute top-4 right-4 glass rounded-full p-6 animate-pulse-glow-pink pointer-events-auto"
-            style={{
-              borderColor: 'hsl(var(--accent))',
-              boxShadow: 'var(--shadow-neon-accent)'
-            }}
-            onTouchStart={() => { touchRef.current.shooting = true; }}
-            onTouchEnd={() => { touchRef.current.shooting = false; }}
-          >
-            <span className="text-2xl text-neon-accent font-bold">🔥</span>
-          </button>
-
-          {/* Movement Indicator */}
-          <div className="absolute bottom-8 left-8 glass rounded-full p-2 animate-pulse-glow pointer-events-none">
-            <p className="text-xs text-muted-foreground px-2">Touch to move</p>
-          </div>
+          <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
+          <ShootButton onShoot={handleShoot} onShootEnd={handleShootEnd} />
         </>
       )}
     </div>

@@ -10,6 +10,7 @@ function App() {
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [highScore, setHighScore] = useState(() => {
     const saved = localStorage.getItem('highScore');
     return saved ? parseInt(saved, 10) : 0;
@@ -19,6 +20,7 @@ function App() {
     setScore(0);
     setLevel(1);
     setCombo(0);
+    setProgress(0);
     setGameState('playing');
   };
 
@@ -42,6 +44,10 @@ function App() {
     setCombo(newCombo);
   };
 
+  const updateProgress = (newProgress) => {
+    setProgress(newProgress);
+  };
+
   return (
     <div className="App min-h-screen w-full overflow-hidden" style={{ background: 'var(--gradient-space)' }}>
       {gameState === 'start' && (
@@ -54,6 +60,7 @@ function App() {
             onScoreUpdate={updateScore}
             onLevelUpdate={updateLevel}
             onComboUpdate={updateCombo}
+            onProgressUpdate={updateProgress}
             onGameOver={endGame}
             gameState={gameState}
           />
@@ -61,6 +68,7 @@ function App() {
             score={score}
             level={level}
             combo={combo}
+            progress={progress}
           />
         </div>
       )}
