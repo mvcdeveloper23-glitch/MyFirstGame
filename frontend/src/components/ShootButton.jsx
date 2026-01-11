@@ -15,7 +15,7 @@ export default function ShootButton({ onShoot, onShootEnd }) {
   };
 
   return (
-    <div className="absolute bottom-8 right-8 pointer-events-auto z-50">
+    <div className="absolute bottom-8 left-8 pointer-events-auto z-50">
       <button
         className={`w-24 h-24 rounded-full glass border-4 flex items-center justify-center transition-all duration-150 ${
           isPressed ? 'scale-90' : 'scale-100'

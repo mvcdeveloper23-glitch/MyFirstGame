@@ -3,7 +3,7 @@ import Joystick from './Joystick';
 import ShootButton from './ShootButton';
 import LevelCompleteScreen from './LevelCompleteScreen';
 
-const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onGameOver, gameState }) => {
+const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onGameOver, onPause, gameState, initialLevel, initialScore }) => {
   const canvasRef = useRef(null);
   const gameLoopRef = useRef(null);
   const gameObjectsRef = useRef({
@@ -17,8 +17,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
   const joystickRef = useRef({ x: 0, y: 0 });
   const shootingRef = useRef(false);
   const gameStatsRef = useRef({
-    score: 0,
-    level: 1,
+    score: initialScore || 0,
+    level: initialLevel || 1,
     combo: 0,
     comboTimer: 0,
     enemySpawnTimer: 0,
@@ -43,7 +43,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     setIsMobile(checkMobile());
   }, []);
 
-  // Joystick handlers
   const handleJoystickMove = (direction) => {
     joystickRef.current = direction;
   };
@@ -68,7 +67,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     gameObjectsRef.current.bullets = [];
   };
 
-  // Initialize game
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -121,7 +119,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e) => {
       keysRef.current[e.key.toLowerCase()] = true;
@@ -137,7 +134,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     };
   }, []);
 
-  // Game loop
   useEffect(() => {
     if (gameState !== 'playing' || isPaused) return;
 
@@ -208,14 +204,12 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     };
 
     const createExplosion = (x, y, color) => {
-      // Create multiple explosion rings
       for (let ring = 0; ring < 3; ring++) {
         for (let i = 0; i < 20; i++) {
           const angle = (Math.PI * 2 * i) / 20;
           const speed = 3 + ring * 2 + Math.random() * 2;
           gameObjectsRef.current.particles.push({
-            x,
-            y,
+            x, y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             size: 6 - ring * 1.5,
@@ -227,11 +221,9 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         }
       }
       
-      // Add bright flash particles
       for (let i = 0; i < 10; i++) {
         gameObjectsRef.current.particles.push({
-          x,
-          y,
+          x, y,
           vx: (Math.random() - 0.5) * 8,
           vy: (Math.random() - 0.5) * 8,
           size: 8 + Math.random() * 4,
@@ -250,16 +242,53 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
              rect1.y + rect1.height > rect2.y;
     };
 
+    const checkCircleCollision = (obj1, obj2) => {
+      const dx = (obj1.x + obj1.width / 2) - (obj2.x + obj2.width / 2);
+      const dy = (obj1.y + obj1.height / 2) - (obj2.y + obj2.height / 2);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const minDistance = (obj1.width + obj2.width) / 2;
+      return distance < minDistance;
+    };
+
+    const resolveEnemyCollision = (enemy1, enemy2) => {
+      const dx = (enemy2.x + enemy2.width / 2) - (enemy1.x + enemy1.width / 2);
+      const dy = (enemy2.y + enemy2.height / 2) - (enemy1.y + enemy1.height / 2);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance === 0) return;
+      
+      const overlap = ((enemy1.width + enemy2.width) / 2) - distance;
+      if (overlap > 0) {
+        const normalX = dx / distance;
+        const normalY = dy / distance;
+        
+        enemy1.x -= normalX * overlap / 2;
+        enemy1.y -= normalY * overlap / 2;
+        enemy2.x += normalX * overlap / 2;
+        enemy2.y += normalY * overlap / 2;
+        
+        const relativeVx = enemy2.vx - enemy1.vx;
+        const relativeVy = enemy2.vy - enemy1.vy;
+        const dotProduct = relativeVx * normalX + relativeVy * normalY;
+        
+        if (dotProduct < 0) {
+          const impulse = 1.0;
+          enemy1.vx += normalX * dotProduct * impulse;
+          enemy1.vy += normalY * dotProduct * impulse;
+          enemy2.vx -= normalX * dotProduct * impulse;
+          enemy2.vy -= normalY * dotProduct * impulse;
+        }
+      }
+    };
+
     const drawJet = (ctx, x, y, angle) => {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
       
-      // Main body shadow/glow
       ctx.shadowColor = colors.player;
       ctx.shadowBlur = 25;
       
-      // Main fuselage
       ctx.fillStyle = colors.player;
       ctx.beginPath();
       ctx.moveTo(0, -25);
@@ -270,7 +299,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.closePath();
       ctx.fill();
       
-      // Wings
       ctx.fillStyle = colors.playerAccent;
       ctx.beginPath();
       ctx.moveTo(-8, 0);
@@ -288,13 +316,11 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.closePath();
       ctx.fill();
       
-      // Cockpit
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
       ctx.arc(0, -10, 4, 0, Math.PI * 2);
       ctx.fill();
       
-      // Engine exhausts (glowing)
       ctx.shadowColor = '#FF6600';
       ctx.shadowBlur = 15;
       ctx.fillStyle = '#FF4500';
@@ -309,18 +335,15 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.translate(x, y);
       ctx.rotate(angle);
       
-      // Fire bullet with gradient
       const gradient = ctx.createLinearGradient(0, -10, 0, 10);
       gradient.addColorStop(0, '#FFD700');
       gradient.addColorStop(0.3, '#FF8C00');
       gradient.addColorStop(0.7, '#FF4500');
       gradient.addColorStop(1, '#FF0000');
       
-      // Outer glow
       ctx.shadowColor = '#FF6600';
       ctx.shadowBlur = 20;
       
-      // Flame shape
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.moveTo(0, -10);
@@ -331,7 +354,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.closePath();
       ctx.fill();
       
-      // Bright core
       ctx.shadowBlur = 15;
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
@@ -345,7 +367,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.fillStyle = 'rgba(5, 8, 13, 1)';
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-      // Draw border
       ctx.strokeStyle = BORDER_COLOR;
       ctx.lineWidth = BORDER_WIDTH;
       ctx.shadowColor = BORDER_COLOR;
@@ -353,7 +374,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       ctx.strokeRect(BORDER_WIDTH / 2, BORDER_WIDTH / 2, window.innerWidth - BORDER_WIDTH, window.innerHeight - BORDER_WIDTH);
       ctx.shadowBlur = 0;
 
-      // Draw stars
       gameObjectsRef.current.stars.forEach(star => {
         star.y += star.speed;
         if (star.y > window.innerHeight - BORDER_WIDTH) {
@@ -367,14 +387,12 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       const player = gameObjectsRef.current.player;
       let moveX = 0, moveY = 0;
 
-      // Keyboard input
       if (keysRef.current['arrowleft'] || keysRef.current['a']) moveX -= 1;
       if (keysRef.current['arrowright'] || keysRef.current['d']) moveX += 1;
       if (keysRef.current['arrowup'] || keysRef.current['w']) moveY -= 1;
       if (keysRef.current['arrowdown'] || keysRef.current['s']) moveY += 1;
       if (keysRef.current[' '] || keysRef.current['enter']) shoot();
 
-      // Joystick input
       if (joystickRef.current.x !== 0 || joystickRef.current.y !== 0) {
         moveX += joystickRef.current.x;
         moveY += joystickRef.current.y;
@@ -386,7 +404,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         player.y += moveY * player.speed;
       }
 
-      // Smooth rotation
       let angleDiff = player.targetAngle - player.angle;
       while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
       while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
@@ -394,7 +411,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
       if (shootingRef.current) shoot();
 
-      // Border collision
       if (player.x - player.width / 2 <= BORDER_WIDTH ||
           player.x + player.width / 2 >= window.innerWidth - BORDER_WIDTH ||
           player.y - player.height / 2 <= BORDER_WIDTH ||
@@ -407,10 +423,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       player.x = Math.max(BORDER_WIDTH + player.width / 2, Math.min(window.innerWidth - BORDER_WIDTH - player.width / 2, player.x));
       player.y = Math.max(BORDER_WIDTH + player.height / 2, Math.min(window.innerHeight - BORDER_WIDTH - player.height / 2, player.y));
 
-      // Draw player jet
       drawJet(ctx, player.x, player.y, player.angle);
 
-      // Update and draw bullets
       gameObjectsRef.current.bullets = gameObjectsRef.current.bullets.filter(bullet => {
         bullet.x += bullet.vx;
         bullet.y += bullet.vy;
@@ -425,15 +439,13 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
       if (player.shootCooldown > 0) player.shootCooldown--;
 
-      // Spawn enemies
       gameStatsRef.current.enemySpawnTimer++;
       if (gameStatsRef.current.enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
         spawnEnemy();
         gameStatsRef.current.enemySpawnTimer = 0;
       }
 
-      // Update enemies
-      gameObjectsRef.current.enemies = gameObjectsRef.current.enemies.filter(enemy => {
+      gameObjectsRef.current.enemies.forEach(enemy => {
         enemy.x += enemy.vx;
         enemy.y += enemy.vy;
         enemy.rotation += 0.05;
@@ -449,8 +461,21 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
         enemy.x = Math.max(BORDER_WIDTH, Math.min(window.innerWidth - BORDER_WIDTH - enemy.width, enemy.x));
         enemy.y = Math.max(BORDER_WIDTH, Math.min(window.innerHeight - BORDER_WIDTH - enemy.height, enemy.y));
+      });
 
-        // Draw enemy
+      // Enemy-to-enemy collision detection and resolution
+      for (let i = 0; i < gameObjectsRef.current.enemies.length; i++) {
+        for (let j = i + 1; j < gameObjectsRef.current.enemies.length; j++) {
+          const enemy1 = gameObjectsRef.current.enemies[i];
+          const enemy2 = gameObjectsRef.current.enemies[j];
+          
+          if (checkCircleCollision(enemy1, enemy2)) {
+            resolveEnemyCollision(enemy1, enemy2);
+          }
+        }
+      }
+
+      gameObjectsRef.current.enemies = gameObjectsRef.current.enemies.filter(enemy => {
         ctx.save();
         ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
         ctx.rotate(enemy.rotation);
@@ -472,7 +497,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         ctx.stroke();
         ctx.restore();
 
-        // Collision with player
         if (checkCollision(player, enemy)) {
           createExplosion(player.x, player.y, colors.player);
           createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
@@ -480,7 +504,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
           return false;
         }
 
-        // Collision with bullets
         for (let bullet of gameObjectsRef.current.bullets) {
           if (checkCollision(bullet, enemy)) {
             createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
@@ -504,7 +527,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         return true;
       });
 
-      // Update combo
       if (gameStatsRef.current.comboTimer > 0) {
         gameStatsRef.current.comboTimer--;
       } else {
@@ -514,7 +536,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         }
       }
 
-      // Level progression
       const enemiesNeeded = gameStatsRef.current.level * 5;
       const progress = (gameStatsRef.current.enemiesKilled % enemiesNeeded) / enemiesNeeded;
       onProgressUpdate(progress * 100);
@@ -528,7 +549,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         return;
       }
 
-      // Update particles
       gameObjectsRef.current.particles = gameObjectsRef.current.particles.filter(particle => {
         particle.x += particle.vx;
         particle.y += particle.vy;

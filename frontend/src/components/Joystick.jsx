@@ -43,7 +43,6 @@ export default function Joystick({ onMove, onStop }) {
 
       setKnobPosition({ x: deltaX, y: deltaY });
 
-      // Normalize to -1 to 1 range
       const normalizedX = deltaX / maxDistance;
       const normalizedY = deltaY / maxDistance;
 
@@ -56,7 +55,6 @@ export default function Joystick({ onMove, onStop }) {
       onStop();
     };
 
-    // Touch events
     const handleTouchStart = (e) => {
       e.preventDefault();
       const touch = e.touches[0];
@@ -69,7 +67,6 @@ export default function Joystick({ onMove, onStop }) {
       handleMove(touch.clientX, touch.clientY);
     };
 
-    // Mouse events
     const handleMouseDown = (e) => {
       handleStart(e.clientX, e.clientY);
     };
@@ -96,7 +93,7 @@ export default function Joystick({ onMove, onStop }) {
   }, [onMove, onStop]);
 
   return (
-    <div className="absolute bottom-8 left-8 pointer-events-auto z-50">
+    <div className="absolute bottom-8 right-8 pointer-events-auto z-50">
       <div
         ref={joystickRef}
         className="relative w-32 h-32 rounded-full glass border-2 flex items-center justify-center"
@@ -105,13 +102,9 @@ export default function Joystick({ onMove, onStop }) {
           boxShadow: 'var(--shadow-neon-secondary)'
         }}
       >
-        {/* Joystick background circle */}
         <div className="absolute inset-4 rounded-full bg-muted/20" />
-        
-        {/* Center dot */}
         <div className="absolute w-2 h-2 rounded-full bg-secondary/50" />
         
-        {/* Joystick knob */}
         <div
           ref={knobRef}
           className="absolute w-12 h-12 rounded-full flex items-center justify-center transition-transform"
