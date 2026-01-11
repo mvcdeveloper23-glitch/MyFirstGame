@@ -1,52 +1,78 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
-};
+import React, { useState } from 'react';
+import GameCanvas from './components/GameCanvas';
+import GameUI from './components/GameUI';
+import StartScreen from './components/StartScreen';
+import GameOverScreen from './components/GameOverScreen';
+import './App.css';
 
 function App() {
+  const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'gameover'
+  const [score, setScore] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [combo, setCombo] = useState(0);
+  const [highScore, setHighScore] = useState(() => {
+    const saved = localStorage.getItem('highScore');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  const startGame = () => {
+    setScore(0);
+    setLevel(1);
+    setCombo(0);
+    setGameState('playing');
+  };
+
+  const endGame = (finalScore) => {
+    if (finalScore > highScore) {
+      setHighScore(finalScore);
+      localStorage.setItem('highScore', finalScore.toString());
+    }
+    setGameState('gameover');
+  };
+
+  const updateScore = (points) => {
+    setScore(prev => prev + points);
+  };
+
+  const updateLevel = (newLevel) => {
+    setLevel(newLevel);
+  };
+
+  const updateCombo = (newCombo) => {
+    setCombo(newCombo);
+  };
+
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+    <div className="App min-h-screen w-full overflow-hidden" style={{ background: 'var(--gradient-space)' }}>
+      {gameState === 'start' && (
+        <StartScreen onStart={startGame} highScore={highScore} />
+      )}
+      
+      {gameState === 'playing' && (
+        <div className="relative w-full h-screen">
+          <GameCanvas 
+            onScoreUpdate={updateScore}
+            onLevelUpdate={updateLevel}
+            onComboUpdate={updateCombo}
+            onGameOver={endGame}
+            gameState={gameState}
+          />
+          <GameUI 
+            score={score}
+            level={level}
+            combo={combo}
+          />
+        </div>
+      )}
+      
+      {gameState === 'gameover' && (
+        <GameOverScreen 
+          score={score}
+          highScore={highScore}
+          level={level}
+          onRestart={startGame}
+        />
+      )}
     </div>
   );
 }
