@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { Rocket, Trophy, Zap } from 'lucide-react';
+import { Rocket, Trophy, Zap, Smartphone } from 'lucide-react';
 
 export default function StartScreen({ onStart, highScore }) {
   return (
@@ -23,7 +23,7 @@ export default function StartScreen({ onStart, highScore }) {
         ))}
       </div>
 
-      <div className="relative z-10 text-center space-y-8 px-4">
+      <div className="relative z-10 text-center space-y-8 px-4 max-w-2xl">
         {/* Logo/Title */}
         <div className="space-y-4 animate-float">
           <div className="flex justify-center">
@@ -67,23 +67,42 @@ export default function StartScreen({ onStart, highScore }) {
           </Button>
           
           {/* Controls Info */}
-          <div className="glass rounded-xl px-6 py-4 inline-block text-sm text-muted-foreground">
-            <p className="mb-2 font-semibold text-foreground">Controls:</p>
-            <p><span className="text-neon-secondary">Desktop:</span> Arrow Keys / WASD + Space to Shoot</p>
-            <p><span className="text-neon-accent">Mobile:</span> Touch Joystick + Shoot Button</p>
+          <div className="glass rounded-xl px-6 py-4 text-sm text-muted-foreground">
+            <p className="mb-3 font-semibold text-foreground text-base">🎮 Controls:</p>
+            <div className="space-y-2 text-left">
+              <p><span className="text-neon-secondary font-semibold">Desktop:</span> Arrow Keys / WASD + Space to Shoot</p>
+              <p><span className="text-neon-accent font-semibold">Mobile:</span> Touch Joystick + Shoot Button</p>
+            </div>
+          </div>
+
+          {/* Mobile Instructions */}
+          <div className="glass rounded-xl px-6 py-4 text-sm">
+            <div className="flex items-start gap-3">
+              <Smartphone className="w-5 h-5 text-neon-primary flex-shrink-0 mt-1" />
+              <div className="text-left space-y-2">
+                <p className="font-semibold text-foreground">📱 How to Play on Mobile:</p>
+                <ol className="text-muted-foreground space-y-1 text-xs">
+                  <li>1. Open this game in any mobile browser (Chrome, Safari, etc.)</li>
+                  <li>2. Turn your phone to <span className="text-neon-secondary font-semibold">landscape mode</span> for best experience</li>
+                  <li>3. Use <span className="text-neon-secondary">joystick (bottom left)</span> to move your jet</li>
+                  <li>4. Tap <span className="text-neon-accent">SHOOT button (bottom right)</span> to fire</li>
+                  <li>5. Avoid borders and enemies, destroy obstacles to level up!</li>
+                </ol>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Feature Pills */}
         <div className="flex flex-wrap justify-center gap-4 mt-8">
           <div className="glass px-4 py-2 rounded-full text-sm">
-            <span className="text-neon-primary">✨</span> Neon Graphics
+            <span className="text-neon-primary">🔥</span> Fire Bullets
           </div>
           <div className="glass px-4 py-2 rounded-full text-sm">
-            <span className="text-neon-secondary">⚡</span> Fast Action
+            <span className="text-neon-secondary">✈️</span> Jet Fighter
           </div>
           <div className="glass px-4 py-2 rounded-full text-sm">
-            <span className="text-neon-accent">🎯</span> Combo System
+            <span className="text-neon-accent">💥</span> Epic Explosions
           </div>
         </div>
       </div>

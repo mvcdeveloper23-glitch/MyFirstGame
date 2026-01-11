@@ -64,7 +64,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     setShowLevelComplete(false);
     setIsPaused(false);
     gameStatsRef.current.enemiesKilled = 0;
-    // Clear all enemies and bullets
     gameObjectsRef.current.enemies = [];
     gameObjectsRef.current.bullets = [];
   };
@@ -76,12 +75,10 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
     const ctx = canvas.getContext('2d');
     
-    // Set canvas size based on window size
     const setCanvasSize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      // Support for high DPI displays
       const dpr = window.devicePixelRatio || 1;
       canvas.style.width = window.innerWidth + 'px';
       canvas.style.height = window.innerHeight + 'px';
@@ -92,19 +89,17 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     
     setCanvasSize();
 
-    // Initialize player
     gameObjectsRef.current.player = {
       x: window.innerWidth / 2,
       y: window.innerHeight - 150,
-      width: 30,
-      height: 40,
+      width: 40,
+      height: 50,
       speed: 5,
       shootCooldown: 0,
-      angle: 0, // Rotation angle
-      targetAngle: 0 // Target rotation for smooth turning
+      angle: 0,
+      targetAngle: 0
     };
 
-    // Initialize stars
     for (let i = 0; i < 150; i++) {
       gameObjectsRef.current.stars.push({
         x: Math.random() * window.innerWidth,
@@ -114,7 +109,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       });
     }
 
-    // Handle resize
     const handleResize = () => {
       setCanvasSize();
       if (gameObjectsRef.current.player) {
@@ -124,10 +118,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     };
 
     window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Keyboard controls
@@ -135,14 +126,11 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     const handleKeyDown = (e) => {
       keysRef.current[e.key.toLowerCase()] = true;
     };
-
     const handleKeyUp = (e) => {
       keysRef.current[e.key.toLowerCase()] = false;
     };
-
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
@@ -159,16 +147,18 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
 
     const BORDER_WIDTH = 10;
     const BORDER_COLOR = '#00D9FF';
-    const ENEMY_SPAWN_INTERVAL = 120; // 2 seconds at 60fps
+    const ENEMY_SPAWN_INTERVAL = 120;
 
     const colors = {
       player: '#00D9FF',
-      bullet: '#FF1493',
+      playerAccent: '#0088CC',
+      bullet: '#FF4500',
+      bulletCore: '#FFD700',
       enemy1: '#8A2BE2',
       enemy2: '#FF6347',
       enemy3: '#00FF7F',
       enemy4: '#FFD700',
-      particle: '#00D9FF'
+      explosion: ['#FF4500', '#FF8C00', '#FFD700', '#FF6347', '#FFA500']
     };
 
     const spawnEnemy = () => {
@@ -176,18 +166,15 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       const type = types[Math.floor(Math.random() * types.length)];
       const size = 35 + Math.random() * 15;
       
-      // Random spawn position (top or sides)
       let x, y, vx, vy;
       const spawnSide = Math.random();
       
       if (spawnSide < 0.5) {
-        // Spawn from top
         x = BORDER_WIDTH + Math.random() * (window.innerWidth - size - BORDER_WIDTH * 2);
         y = BORDER_WIDTH - size;
         vx = (Math.random() - 0.5) * 3;
         vy = 2 + Math.random() * (gameStatsRef.current.level * 0.3);
       } else {
-        // Spawn from sides
         x = Math.random() < 0.5 ? BORDER_WIDTH - size : window.innerWidth - BORDER_WIDTH;
         y = BORDER_WIDTH + Math.random() * (window.innerHeight / 2);
         vx = x < window.innerWidth / 2 ? 2 + Math.random() * 2 : -(2 + Math.random() * 2);
@@ -195,48 +182,63 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       }
       
       gameObjectsRef.current.enemies.push({
-        x,
-        y,
-        width: size,
-        height: size,
-        vx,
-        vy,
-        type,
-        health: 1,
-        rotation: 0
+        x, y, width: size, height: size, vx, vy, type, health: 1, rotation: 0
       });
     };
 
     const shoot = () => {
       const player = gameObjectsRef.current.player;
       if (player.shootCooldown <= 0) {
-        // Calculate bullet direction based on player rotation
-        const bulletAngle = player.angle - Math.PI / 2; // -90 degrees because 0 is right
-        const bulletSpeed = 10;
+        const bulletAngle = player.angle - Math.PI / 2;
+        const bulletSpeed = 12;
         
         gameObjectsRef.current.bullets.push({
           x: player.x,
           y: player.y,
           vx: Math.cos(bulletAngle) * bulletSpeed,
           vy: Math.sin(bulletAngle) * bulletSpeed,
-          width: 6,
-          height: 15,
-          angle: player.angle
+          width: 8,
+          height: 20,
+          angle: player.angle,
+          life: 60,
+          trail: []
         });
-        player.shootCooldown = 10;
+        player.shootCooldown = 8;
       }
     };
 
-    const createParticles = (x, y, color) => {
-      for (let i = 0; i < 15; i++) {
+    const createExplosion = (x, y, color) => {
+      // Create multiple explosion rings
+      for (let ring = 0; ring < 3; ring++) {
+        for (let i = 0; i < 20; i++) {
+          const angle = (Math.PI * 2 * i) / 20;
+          const speed = 3 + ring * 2 + Math.random() * 2;
+          gameObjectsRef.current.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: 6 - ring * 1.5,
+            life: 50 - ring * 10,
+            maxLife: 50 - ring * 10,
+            color: colors.explosion[Math.floor(Math.random() * colors.explosion.length)],
+            type: 'explosion'
+          });
+        }
+      }
+      
+      // Add bright flash particles
+      for (let i = 0; i < 10; i++) {
         gameObjectsRef.current.particles.push({
           x,
           y,
-          vx: (Math.random() - 0.5) * 10,
-          vy: (Math.random() - 0.5) * 10,
-          size: Math.random() * 5 + 2,
-          life: 40,
-          color
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          size: 8 + Math.random() * 4,
+          life: 30,
+          maxLife: 30,
+          color: '#FFFFFF',
+          type: 'flash'
         });
       }
     };
@@ -248,8 +250,98 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
              rect1.y + rect1.height > rect2.y;
     };
 
+    const drawJet = (ctx, x, y, angle) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      
+      // Main body shadow/glow
+      ctx.shadowColor = colors.player;
+      ctx.shadowBlur = 25;
+      
+      // Main fuselage
+      ctx.fillStyle = colors.player;
+      ctx.beginPath();
+      ctx.moveTo(0, -25);
+      ctx.lineTo(-8, 15);
+      ctx.lineTo(-4, 20);
+      ctx.lineTo(4, 20);
+      ctx.lineTo(8, 15);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Wings
+      ctx.fillStyle = colors.playerAccent;
+      ctx.beginPath();
+      ctx.moveTo(-8, 0);
+      ctx.lineTo(-20, 10);
+      ctx.lineTo(-18, 12);
+      ctx.lineTo(-8, 8);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(20, 10);
+      ctx.lineTo(18, 12);
+      ctx.lineTo(8, 8);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Cockpit
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(0, -10, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Engine exhausts (glowing)
+      ctx.shadowColor = '#FF6600';
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = '#FF4500';
+      ctx.fillRect(-6, 18, 4, 6);
+      ctx.fillRect(2, 18, 4, 6);
+      
+      ctx.restore();
+    };
+
+    const drawFireBullet = (ctx, x, y, angle, life) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      
+      // Fire bullet with gradient
+      const gradient = ctx.createLinearGradient(0, -10, 0, 10);
+      gradient.addColorStop(0, '#FFD700');
+      gradient.addColorStop(0.3, '#FF8C00');
+      gradient.addColorStop(0.7, '#FF4500');
+      gradient.addColorStop(1, '#FF0000');
+      
+      // Outer glow
+      ctx.shadowColor = '#FF6600';
+      ctx.shadowBlur = 20;
+      
+      // Flame shape
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.moveTo(0, -10);
+      ctx.quadraticCurveTo(-4, -5, -3, 0);
+      ctx.quadraticCurveTo(-5, 5, 0, 10);
+      ctx.quadraticCurveTo(5, 5, 3, 0);
+      ctx.quadraticCurveTo(4, -5, 0, -10);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Bright core
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 2, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    };
+
     const gameLoop = () => {
-      // Clear canvas
       ctx.fillStyle = 'rgba(5, 8, 13, 1)';
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
@@ -273,120 +365,79 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       });
 
       const player = gameObjectsRef.current.player;
-      let moveX = 0;
-      let moveY = 0;
+      let moveX = 0, moveY = 0;
 
-      // Update player position (keyboard)
-      if (keysRef.current['arrowleft'] || keysRef.current['a']) {
-        moveX -= 1;
-      }
-      if (keysRef.current['arrowright'] || keysRef.current['d']) {
-        moveX += 1;
-      }
-      if (keysRef.current['arrowup'] || keysRef.current['w']) {
-        moveY -= 1;
-      }
-      if (keysRef.current['arrowdown'] || keysRef.current['s']) {
-        moveY += 1;
-      }
-      if (keysRef.current[' '] || keysRef.current['enter']) {
-        shoot();
-      }
+      // Keyboard input
+      if (keysRef.current['arrowleft'] || keysRef.current['a']) moveX -= 1;
+      if (keysRef.current['arrowright'] || keysRef.current['d']) moveX += 1;
+      if (keysRef.current['arrowup'] || keysRef.current['w']) moveY -= 1;
+      if (keysRef.current['arrowdown'] || keysRef.current['s']) moveY += 1;
+      if (keysRef.current[' '] || keysRef.current['enter']) shoot();
 
-      // Update player position (joystick)
+      // Joystick input
       if (joystickRef.current.x !== 0 || joystickRef.current.y !== 0) {
         moveX += joystickRef.current.x;
         moveY += joystickRef.current.y;
       }
 
-      // Calculate rotation based on movement
       if (moveX !== 0 || moveY !== 0) {
-        player.targetAngle = Math.atan2(moveY, moveX) + Math.PI / 2; // +90 degrees
+        player.targetAngle = Math.atan2(moveY, moveX) + Math.PI / 2;
         player.x += moveX * player.speed;
         player.y += moveY * player.speed;
       }
 
       // Smooth rotation
       let angleDiff = player.targetAngle - player.angle;
-      // Normalize angle difference to -PI to PI
       while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
       while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-      player.angle += angleDiff * 0.2; // Smooth interpolation
+      player.angle += angleDiff * 0.2;
 
-      if (shootingRef.current) {
-        shoot();
-      }
+      if (shootingRef.current) shoot();
 
-      // Check border collision for player
+      // Border collision
       if (player.x - player.width / 2 <= BORDER_WIDTH ||
           player.x + player.width / 2 >= window.innerWidth - BORDER_WIDTH ||
           player.y - player.height / 2 <= BORDER_WIDTH ||
           player.y + player.height / 2 >= window.innerHeight - BORDER_WIDTH) {
-        createParticles(player.x, player.y, colors.player);
+        createExplosion(player.x, player.y, colors.player);
         onGameOver(gameStatsRef.current.score);
         return;
       }
 
-      // Keep player in bounds
       player.x = Math.max(BORDER_WIDTH + player.width / 2, Math.min(window.innerWidth - BORDER_WIDTH - player.width / 2, player.x));
       player.y = Math.max(BORDER_WIDTH + player.height / 2, Math.min(window.innerHeight - BORDER_WIDTH - player.height / 2, player.y));
 
-      // Draw player (triangle spaceship with rotation and glow)
-      ctx.save();
-      ctx.translate(player.x, player.y);
-      ctx.rotate(player.angle);
-      ctx.shadowColor = colors.player;
-      ctx.shadowBlur = 25;
-      ctx.fillStyle = colors.player;
-      ctx.beginPath();
-      ctx.moveTo(0, -player.height / 2);
-      ctx.lineTo(-player.width / 2, player.height / 2);
-      ctx.lineTo(player.width / 2, player.height / 2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      // Draw player jet
+      drawJet(ctx, player.x, player.y, player.angle);
 
       // Update and draw bullets
       gameObjectsRef.current.bullets = gameObjectsRef.current.bullets.filter(bullet => {
         bullet.x += bullet.vx;
         bullet.y += bullet.vy;
+        bullet.life--;
 
-        ctx.save();
-        ctx.translate(bullet.x, bullet.y);
-        ctx.rotate(bullet.angle);
-        ctx.shadowColor = colors.bullet;
-        ctx.shadowBlur = 20;
-        ctx.fillStyle = colors.bullet;
-        
-        // Draw bullet as a glowing oval
-        ctx.beginPath();
-        ctx.ellipse(0, 0, bullet.width, bullet.height, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        drawFireBullet(ctx, bullet.x, bullet.y, bullet.angle, bullet.life);
 
-        // Remove bullets that go off screen
         return bullet.x > BORDER_WIDTH && bullet.x < window.innerWidth - BORDER_WIDTH &&
-               bullet.y > BORDER_WIDTH && bullet.y < window.innerHeight - BORDER_WIDTH;
+               bullet.y > BORDER_WIDTH && bullet.y < window.innerHeight - BORDER_WIDTH &&
+               bullet.life > 0;
       });
 
-      // Update cooldowns
       if (player.shootCooldown > 0) player.shootCooldown--;
 
-      // Spawn enemies every 2 seconds
+      // Spawn enemies
       gameStatsRef.current.enemySpawnTimer++;
       if (gameStatsRef.current.enemySpawnTimer >= ENEMY_SPAWN_INTERVAL) {
         spawnEnemy();
         gameStatsRef.current.enemySpawnTimer = 0;
       }
 
-      // Update and draw enemies with zigzag movement
+      // Update enemies
       gameObjectsRef.current.enemies = gameObjectsRef.current.enemies.filter(enemy => {
-        // Move enemy
         enemy.x += enemy.vx;
         enemy.y += enemy.vy;
         enemy.rotation += 0.05;
 
-        // Bounce off borders (zigzag effect)
         if (enemy.x <= BORDER_WIDTH || enemy.x + enemy.width >= window.innerWidth - BORDER_WIDTH) {
           enemy.vx *= -1;
           enemy.vx += (Math.random() - 0.5) * 0.5;
@@ -396,11 +447,10 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
           enemy.vy += (Math.random() - 0.5) * 0.5;
         }
 
-        // Keep enemies in bounds
         enemy.x = Math.max(BORDER_WIDTH, Math.min(window.innerWidth - BORDER_WIDTH - enemy.width, enemy.x));
         enemy.y = Math.max(BORDER_WIDTH, Math.min(window.innerHeight - BORDER_WIDTH - enemy.height, enemy.y));
 
-        // Draw hexagon enemy with glow
+        // Draw enemy
         ctx.save();
         ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
         ctx.rotate(enemy.rotation);
@@ -422,18 +472,18 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         ctx.stroke();
         ctx.restore();
 
-        // Check collision with player
+        // Collision with player
         if (checkCollision(player, enemy)) {
-          createParticles(player.x, player.y, colors.player);
-          createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
+          createExplosion(player.x, player.y, colors.player);
+          createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
           onGameOver(gameStatsRef.current.score);
           return false;
         }
 
-        // Check collision with bullets
+        // Collision with bullets
         for (let bullet of gameObjectsRef.current.bullets) {
           if (checkCollision(bullet, enemy)) {
-            createParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
+            createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
             
             const points = 10 * gameStatsRef.current.combo;
             gameStatsRef.current.score += points;
@@ -444,7 +494,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
             onScoreUpdate(points);
             onComboUpdate(gameStatsRef.current.combo);
             
-            // Remove bullet
             const index = gameObjectsRef.current.bullets.indexOf(bullet);
             if (index > -1) gameObjectsRef.current.bullets.splice(index, 1);
             
@@ -455,7 +504,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         return true;
       });
 
-      // Update combo timer
+      // Update combo
       if (gameStatsRef.current.comboTimer > 0) {
         gameStatsRef.current.comboTimer--;
       } else {
@@ -465,13 +514,11 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         }
       }
 
-      // Level progression - enemies needed = level * 5
+      // Level progression
       const enemiesNeeded = gameStatsRef.current.level * 5;
       const progress = (gameStatsRef.current.enemiesKilled % enemiesNeeded) / enemiesNeeded;
-      gameStatsRef.current.levelProgress = progress;
       onProgressUpdate(progress * 100);
 
-      // Check if level is complete
       if (gameStatsRef.current.enemiesKilled >= gameStatsRef.current.level * 5) {
         setIsPaused(true);
         setCompletedLevel(gameStatsRef.current.level);
@@ -481,22 +528,34 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         return;
       }
 
-      // Update and draw particles
+      // Update particles
       gameObjectsRef.current.particles = gameObjectsRef.current.particles.filter(particle => {
         particle.x += particle.vx;
         particle.y += particle.vy;
         particle.life--;
-        particle.vx *= 0.98;
-        particle.vy *= 0.98;
+        particle.vx *= 0.96;
+        particle.vy *= 0.96;
 
         ctx.save();
-        ctx.globalAlpha = particle.life / 40;
-        ctx.shadowColor = particle.color;
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = particle.color;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
+        const alpha = particle.life / particle.maxLife;
+        ctx.globalAlpha = alpha;
+        
+        if (particle.type === 'explosion') {
+          ctx.shadowColor = particle.color;
+          ctx.shadowBlur = 15;
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * (1 + (1 - alpha) * 0.5), 0, Math.PI * 2);
+          ctx.fill();
+        } else if (particle.type === 'flash') {
+          ctx.shadowColor = '#FFFFFF';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = particle.color;
+          ctx.beginPath();
+          ctx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        
         ctx.restore();
 
         return particle.life > 0;
@@ -508,9 +567,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     gameLoop();
 
     return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
   }, [gameState, isPaused, onScoreUpdate, onLevelUpdate, onComboUpdate, onGameOver, onProgressUpdate]);
 
@@ -522,7 +579,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         style={{ touchAction: 'none' }}
       />
       
-      {/* Controls */}
       {(isMobile || true) && (
         <>
           <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
@@ -530,7 +586,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         </>
       )}
 
-      {/* Level Complete Screen */}
       {showLevelComplete && (
         <LevelCompleteScreen level={completedLevel} onNextLevel={handleNextLevel} />
       )}
