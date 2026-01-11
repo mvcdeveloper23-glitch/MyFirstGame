@@ -1,13 +1,14 @@
 import React from 'react';
-import { Trophy, Zap, Target } from 'lucide-react';
+import { Trophy, Zap, Target, Pause } from 'lucide-react';
+import { Button } from './ui/button';
 
-export default function GameUI({ score, level, combo, progress = 0 }) {
+export default function GameUI({ score, level, combo, progress = 0, onPause }) {
   return (
     <div className="absolute inset-0 pointer-events-none">
       {/* Top UI Bar */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 flex-wrap">
         {/* Score */}
-        <div className="glass rounded-xl px-4 py-3 min-w-[120px] animate-pulse-glow">
+        <div className="glass rounded-xl px-4 py-3 min-w-[120px] animate-pulse-glow pointer-events-auto">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-neon-primary" />
             <div>
@@ -17,8 +18,20 @@ export default function GameUI({ score, level, combo, progress = 0 }) {
           </div>
         </div>
 
+        {/* Pause Button - Center Top */}
+        <Button
+          onClick={onPause}
+          className="glass rounded-full p-3 border-2 hover:scale-110 transition-all duration-300 pointer-events-auto animate-pulse-glow"
+          style={{
+            borderColor: 'hsl(var(--accent))',
+            boxShadow: 'var(--shadow-neon-accent)'
+          }}
+        >
+          <Pause className="w-5 h-5 text-neon-accent" />
+        </Button>
+
         {/* Level */}
-        <div className="glass rounded-xl px-4 py-3 min-w-[120px] animate-pulse-glow-cyan">
+        <div className="glass rounded-xl px-4 py-3 min-w-[120px] animate-pulse-glow-cyan pointer-events-auto">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-neon-secondary" />
             <div>

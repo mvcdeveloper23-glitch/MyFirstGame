@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
 import GameUI from './components/GameUI';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
+import PauseMenu from './components/PauseMenu';
 import './App.css';
 
 function App() {
-  const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'gameover'
+  const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'paused', 'gameover'
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
@@ -15,6 +16,29 @@ function App() {
     const saved = localStorage.getItem('highScore');
     return saved ? parseInt(saved, 10) : 0;
   });
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+
+  // Check for saved game on mount
+  useEffect(() => {
+    const savedGame = localStorage.getItem('savedGame');
+    if (savedGame) {
+      setHasSavedGame(true);
+    }
+  }, []);
+
+  // Auto-save game state
+  useEffect(() => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      const gameData = {
+        score,
+        level,
+        combo,
+        progress,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem('savedGame', JSON.stringify(gameData));
+    }
+  }, [score, level, combo, progress, gameState]);
 
   const startGame = () => {
     setScore(0);
@@ -22,6 +46,39 @@ function App() {
     setCombo(0);
     setProgress(0);
     setGameState('playing');
+    // Clear saved game when starting fresh
+    localStorage.removeItem('savedGame');
+  };
+
+  const resumeSavedGame = () => {
+    const savedGame = localStorage.getItem('savedGame');
+    if (savedGame) {
+      const gameData = JSON.parse(savedGame);
+      setScore(gameData.score);
+      setLevel(gameData.level);
+      setCombo(gameData.combo || 0);
+      setProgress(gameData.progress || 0);
+      setGameState('playing');
+    }
+  };
+
+  const pauseGame = () => {
+    setGameState('paused');
+  };
+
+  const resumeGame = () => {
+    setGameState('playing');
+  };
+
+  const restartLevel = () => {
+    setScore(0);
+    setCombo(0);
+    setProgress(0);
+    setGameState('playing');
+  };
+
+  const goToHome = () => {
+    setGameState('start');
   };
 
   const endGame = (finalScore) => {
@@ -29,6 +86,9 @@ function App() {
       setHighScore(finalScore);
       localStorage.setItem('highScore', finalScore.toString());
     }
+    // Clear saved game on game over
+    localStorage.removeItem('savedGame');
+    setHasSavedGame(false);
     setGameState('gameover');
   };
 
@@ -51,10 +111,14 @@ function App() {
   return (
     <div className="App min-h-screen w-full overflow-hidden" style={{ background: 'var(--gradient-space)' }}>
       {gameState === 'start' && (
-        <StartScreen onStart={startGame} highScore={highScore} />
+        <StartScreen 
+          onStart={startGame} 
+          onResume={hasSavedGame ? resumeSavedGame : null}
+          highScore={highScore} 
+        />
       )}
       
-      {gameState === 'playing' && (
+      {(gameState === 'playing' || gameState === 'paused') && (
         <div className="relative w-full h-screen">
           <GameCanvas 
             onScoreUpdate={updateScore}
@@ -62,14 +126,28 @@ function App() {
             onComboUpdate={updateCombo}
             onProgressUpdate={updateProgress}
             onGameOver={endGame}
+            onPause={pauseGame}
             gameState={gameState}
+            initialLevel={level}
+            initialScore={score}
           />
           <GameUI 
             score={score}
             level={level}
             combo={combo}
             progress={progress}
+            onPause={pauseGame}
           />
+          
+          {gameState === 'paused' && (
+            <PauseMenu 
+              onResume={resumeGame}
+              onRestart={restartLevel}
+              onHome={goToHome}
+              level={level}
+              score={score}
+            />
+          )}
         </div>
       )}
       

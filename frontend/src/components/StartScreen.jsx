@@ -1,8 +1,8 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { Rocket, Trophy, Zap, Smartphone } from 'lucide-react';
+import { Rocket, Trophy, Zap, Smartphone, Play } from 'lucide-react';
 
-export default function StartScreen({ onStart, highScore }) {
+export default function StartScreen({ onStart, onResume, highScore }) {
   return (
     <div className="flex items-center justify-center min-h-screen w-full relative overflow-hidden">
       {/* Animated starfield background */}
@@ -50,12 +50,34 @@ export default function StartScreen({ onStart, highScore }) {
           </div>
         )}
 
+        {/* Resume Button (if saved game exists) */}
+        {onResume && (
+          <div className="space-y-3">
+            <Button
+              onClick={onResume}
+              size="lg"
+              className="glass text-xl px-12 py-8 rounded-2xl border-2 hover:scale-105 transition-all duration-300 animate-pulse-glow-cyan w-full"
+              style={{
+                background: 'var(--gradient-secondary)',
+                borderColor: 'hsl(var(--secondary-glow))',
+                boxShadow: 'var(--shadow-neon-secondary)'
+              }}
+            >
+              <Play className="w-6 h-6 mr-2" fill="currentColor" />
+              CONTINUE GAME
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Pick up where you left off!
+            </p>
+          </div>
+        )}
+
         {/* Start Button */}
         <div className="space-y-4">
           <Button
             onClick={onStart}
             size="lg"
-            className="glass text-xl px-12 py-8 rounded-2xl border-2 hover:scale-105 transition-all duration-300 animate-pulse-glow"
+            className="glass text-xl px-12 py-8 rounded-2xl border-2 hover:scale-105 transition-all duration-300 animate-pulse-glow w-full"
             style={{
               background: 'var(--gradient-primary)',
               borderColor: 'hsl(var(--primary-glow))',
@@ -63,7 +85,7 @@ export default function StartScreen({ onStart, highScore }) {
             }}
           >
             <Zap className="w-6 h-6 mr-2" />
-            START GAME
+            {onResume ? 'NEW GAME' : 'START GAME'}
           </Button>
           
           {/* Controls Info */}
@@ -86,7 +108,8 @@ export default function StartScreen({ onStart, highScore }) {
                   <li>2. Turn your phone to <span className="text-neon-secondary font-semibold">landscape mode</span> for best experience</li>
                   <li>3. Use <span className="text-neon-secondary">joystick (bottom left)</span> to move your jet</li>
                   <li>4. Tap <span className="text-neon-accent">SHOOT button (bottom right)</span> to fire</li>
-                  <li>5. Avoid borders and enemies, destroy obstacles to level up!</li>
+                  <li>5. Press <span className="text-neon-primary">PAUSE button (top center)</span> to pause anytime</li>
+                  <li>6. Your progress is <span className="text-neon-accent font-semibold">auto-saved!</span></li>
                 </ol>
               </div>
             </div>
@@ -103,6 +126,9 @@ export default function StartScreen({ onStart, highScore }) {
           </div>
           <div className="glass px-4 py-2 rounded-full text-sm">
             <span className="text-neon-accent">💥</span> Epic Explosions
+          </div>
+          <div className="glass px-4 py-2 rounded-full text-sm">
+            <span className="text-neon-primary">💾</span> Auto-Save
           </div>
         </div>
       </div>
