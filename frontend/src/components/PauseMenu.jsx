@@ -1,8 +1,24 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { Play, Home, RotateCcw } from 'lucide-react';
+import soundManager from '../utils/soundManager';
 
 export default function PauseMenu({ onResume, onRestart, onHome, level, score }) {
+  const handleResume = () => {
+    soundManager.playResume();
+    onResume();
+  };
+
+  const handleRestart = () => {
+    soundManager.playResume();
+    onRestart();
+  };
+
+  const handleHome = () => {
+    soundManager.playPause();
+    onHome();
+  };
+
   return (
     <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm">
       <div className="glass rounded-3xl px-12 py-8 text-center space-y-6 animate-pulse-glow" 
@@ -15,7 +31,6 @@ export default function PauseMenu({ onResume, onRestart, onHome, level, score })
           PAUSED
         </h2>
         
-        {/* Current Stats */}
         <div className="glass rounded-xl p-4 space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Level:</span>
@@ -30,10 +45,9 @@ export default function PauseMenu({ onResume, onRestart, onHome, level, score })
           </p>
         </div>
 
-        {/* Menu Buttons */}
         <div className="space-y-3">
           <Button
-            onClick={onResume}
+            onClick={handleResume}
             size="lg"
             className="w-full glass text-lg px-8 py-6 rounded-xl border-2 hover:scale-105 transition-all duration-300"
             style={{
@@ -47,7 +61,7 @@ export default function PauseMenu({ onResume, onRestart, onHome, level, score })
           </Button>
 
           <Button
-            onClick={onRestart}
+            onClick={handleRestart}
             size="lg"
             variant="outline"
             className="w-full glass text-lg px-8 py-6 rounded-xl border-2 hover:scale-105 transition-all duration-300"
@@ -60,7 +74,7 @@ export default function PauseMenu({ onResume, onRestart, onHome, level, score })
           </Button>
 
           <Button
-            onClick={onHome}
+            onClick={handleHome}
             size="lg"
             variant="outline"
             className="w-full glass text-lg px-8 py-6 rounded-xl border-2 hover:scale-105 transition-all duration-300"

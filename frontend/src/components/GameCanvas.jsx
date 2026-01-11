@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Joystick from './Joystick';
 import ShootButton from './ShootButton';
 import LevelCompleteScreen from './LevelCompleteScreen';
+import soundManager from '../utils/soundManager';
 
 const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onGameOver, onPause, gameState, initialLevel, initialScore }) => {
   const canvasRef = useRef(null);
@@ -24,13 +25,52 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     enemySpawnTimer: 0,
     levelProgress: 0,
     enemiesKilled: 0,
-    enemiesNeededForLevel: 5
+    enemiesNeededForLevel: 5,
+    lastComboPlayed: 1
   });
 
   const [isMobile, setIsMobile] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [completedLevel, setCompletedLevel] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [soundInitialized, setSoundInitialized] = useState(false);
+
+  // Initialize sound on first user interaction
+  useEffect(() => {
+    const initSound = async () => {
+      if (!soundInitialized) {
+        await soundManager.init();
+        setSoundInitialized(true);
+      }
+    };
+
+    const handleInteraction = () => {
+      initSound();
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('touchstart', handleInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('touchstart', handleInteraction);
+    };
+  }, [soundInitialized]);
+
+  // Start/stop background music based on game state
+  useEffect(() => {
+    if (gameState === 'playing' && !isPaused && soundInitialized) {
+      soundManager.startBackgroundMusic();
+    } else {
+      soundManager.stopBackgroundMusic();
+    }
+
+    return () => {
+      soundManager.stopBackgroundMusic();
+    };
+  }, [gameState, isPaused, soundInitialized]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -65,6 +105,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     gameStatsRef.current.enemiesKilled = 0;
     gameObjectsRef.current.enemies = [];
     gameObjectsRef.current.bullets = [];
+    soundManager.playResume();
   };
 
   useEffect(() => {
@@ -200,10 +241,13 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
           trail: []
         });
         player.shootCooldown = 8;
+        soundManager.playShoot();
       }
     };
 
     const createExplosion = (x, y, color) => {
+      soundManager.playExplosion();
+      
       for (let ring = 0; ring < 3; ring++) {
         for (let i = 0; i < 20; i++) {
           const angle = (Math.PI * 2 * i) / 20;
@@ -416,6 +460,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
           player.y - player.height / 2 <= BORDER_WIDTH ||
           player.y + player.height / 2 >= window.innerHeight - BORDER_WIDTH) {
         createExplosion(player.x, player.y, colors.player);
+        soundManager.playGameOver();
         onGameOver(gameStatsRef.current.score);
         return;
       }
@@ -463,7 +508,6 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         enemy.y = Math.max(BORDER_WIDTH, Math.min(window.innerHeight - BORDER_WIDTH - enemy.height, enemy.y));
       });
 
-      // Enemy-to-enemy collision detection and resolution
       for (let i = 0; i < gameObjectsRef.current.enemies.length; i++) {
         for (let j = i + 1; j < gameObjectsRef.current.enemies.length; j++) {
           const enemy1 = gameObjectsRef.current.enemies[i];
@@ -500,6 +544,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         if (checkCollision(player, enemy)) {
           createExplosion(player.x, player.y, colors.player);
           createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, colors[enemy.type]);
+          soundManager.playGameOver();
           onGameOver(gameStatsRef.current.score);
           return false;
         }
@@ -513,6 +558,12 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
             gameStatsRef.current.combo++;
             gameStatsRef.current.comboTimer = 60;
             gameStatsRef.current.enemiesKilled++;
+            
+            // Play combo sound when combo increases
+            if (gameStatsRef.current.combo > gameStatsRef.current.lastComboPlayed && gameStatsRef.current.combo > 1) {
+              soundManager.playCombo(gameStatsRef.current.combo);
+              gameStatsRef.current.lastComboPlayed = gameStatsRef.current.combo;
+            }
             
             onScoreUpdate(points);
             onComboUpdate(gameStatsRef.current.combo);
@@ -532,6 +583,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
       } else {
         if (gameStatsRef.current.combo > 1) {
           gameStatsRef.current.combo = 1;
+          gameStatsRef.current.lastComboPlayed = 1;
           onComboUpdate(1);
         }
       }
@@ -544,6 +596,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
         setIsPaused(true);
         setCompletedLevel(gameStatsRef.current.level);
         setShowLevelComplete(true);
+        soundManager.playLevelComplete();
         gameStatsRef.current.level++;
         onLevelUpdate(gameStatsRef.current.level);
         return;
