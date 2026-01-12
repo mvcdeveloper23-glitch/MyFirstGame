@@ -4,10 +4,12 @@ import GameUI from './components/GameUI';
 import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import PauseMenu from './components/PauseMenu';
+import SplashScreen from './components/SplashScreen';
 import './App.css';
 
 function App() {
-  const [gameState, setGameState] = useState('start'); // 'start', 'playing', 'paused', 'gameover'
+  const [showSplash, setShowSplash] = useState(true);
+  const [gameState, setGameState] = useState('start');
   const [score, setScore] = useState(0);
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
@@ -18,7 +20,6 @@ function App() {
   });
   const [hasSavedGame, setHasSavedGame] = useState(false);
 
-  // Check for saved game on mount
   useEffect(() => {
     const savedGame = localStorage.getItem('savedGame');
     if (savedGame) {
@@ -26,7 +27,6 @@ function App() {
     }
   }, []);
 
-  // Auto-save game state
   useEffect(() => {
     if (gameState === 'playing' || gameState === 'paused') {
       const gameData = {
@@ -46,7 +46,6 @@ function App() {
     setCombo(0);
     setProgress(0);
     setGameState('playing');
-    // Clear saved game when starting fresh
     localStorage.removeItem('savedGame');
   };
 
@@ -86,7 +85,6 @@ function App() {
       setHighScore(finalScore);
       localStorage.setItem('highScore', finalScore.toString());
     }
-    // Clear saved game on game over
     localStorage.removeItem('savedGame');
     setHasSavedGame(false);
     setGameState('gameover');
@@ -107,6 +105,10 @@ function App() {
   const updateProgress = (newProgress) => {
     setProgress(newProgress);
   };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   return (
     <div className="App min-h-screen w-full overflow-hidden" style={{ background: 'var(--gradient-space)' }}>
