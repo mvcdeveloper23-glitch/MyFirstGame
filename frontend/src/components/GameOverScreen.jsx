@@ -25,62 +25,63 @@ export default function GameOverScreen({ score, highScore, level, onRestart }) {
         ))}
       </div>
 
-      <div className="relative z-10 text-center space-y-8 px-4 max-w-2xl">
-        {/* Game Over Title */}
-        <div className="space-y-4 animate-float">
-          <h1 className="text-6xl md:text-7xl font-bold text-neon-accent" style={{ fontFamily: 'Exo 2, sans-serif' }}>
+      <div className="relative z-10 text-center space-y-4 px-4 max-w-md">
+        {/* Game Over Title - Smaller */}
+        <div className="space-y-2 animate-float">
+          <h1 className="text-4xl md:text-5xl font-bold text-neon-accent" style={{ fontFamily: 'Exo 2, sans-serif' }}>
             GAME OVER
           </h1>
           {isNewHighScore && (
             <div className="animate-pulse-glow-pink">
-              <p className="text-2xl text-neon-accent font-semibold">🎉 NEW HIGH SCORE! 🎉</p>
+              <p className="text-lg text-neon-accent font-semibold">🎉 NEW HIGH SCORE! 🎉</p>
             </div>
           )}
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stats Grid - Smaller */}
+        <div className="grid grid-cols-3 gap-2">
           {/* Score */}
-          <div className="glass rounded-2xl p-6 animate-pulse-glow">
-            <Target className="w-8 h-8 text-neon-primary mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground mb-1">Final Score</p>
-            <p className="text-4xl font-bold text-neon-primary">{score}</p>
+          <div className="glass rounded-lg p-3 transition-all duration-200 hover:scale-105" style={{ backdropFilter: 'blur(10px)' }}>
+            <Target className="w-5 h-5 text-neon-primary mx-auto mb-1" />
+            <p className="text-[8px] text-muted-foreground mb-0.5">Score</p>
+            <p className="text-2xl font-bold text-neon-primary">{score}</p>
           </div>
 
           {/* Level Reached */}
-          <div className="glass rounded-2xl p-6 animate-pulse-glow-cyan">
-            <Zap className="w-8 h-8 text-neon-secondary mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground mb-1">Level Reached</p>
-            <p className="text-4xl font-bold text-neon-secondary">{level}</p>
+          <div className="glass rounded-lg p-3 transition-all duration-200 hover:scale-105" style={{ backdropFilter: 'blur(10px)' }}>
+            <Zap className="w-5 h-5 text-neon-secondary mx-auto mb-1" />
+            <p className="text-[8px] text-muted-foreground mb-0.5">Level</p>
+            <p className="text-2xl font-bold text-neon-secondary">{level}</p>
           </div>
 
           {/* High Score */}
-          <div className="glass rounded-2xl p-6 animate-pulse-glow-pink">
-            <Trophy className="w-8 h-8 text-neon-accent mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground mb-1">High Score</p>
-            <p className="text-4xl font-bold text-neon-accent">{highScore}</p>
+          <div className="glass rounded-lg p-3 transition-all duration-200 hover:scale-105" style={{ backdropFilter: 'blur(10px)' }}>
+            <Trophy className="w-5 h-5 text-neon-accent mx-auto mb-1" />
+            <p className="text-[8px] text-muted-foreground mb-0.5">Best</p>
+            <p className="text-2xl font-bold text-neon-accent">{highScore}</p>
           </div>
         </div>
 
-        {/* Restart Button */}
-        <div className="pt-4">
+        {/* Restart Button - Smaller */}
+        <div className="pt-2">
           <Button
             onClick={onRestart}
             size="lg"
-            className="glass text-xl px-12 py-8 rounded-2xl border-2 hover:scale-105 transition-all duration-300 animate-pulse-glow"
+            className="glass text-base px-8 py-5 rounded-xl border-2 hover:scale-105 transition-all duration-300"
             style={{
               background: 'var(--gradient-primary)',
               borderColor: 'hsl(var(--primary-glow))',
-              boxShadow: 'var(--shadow-neon-primary)'
+              boxShadow: 'var(--shadow-neon-primary)',
+              backdropFilter: 'blur(10px)'
             }}
           >
-            <RotateCcw className="w-6 h-6 mr-2" />
+            <RotateCcw className="w-5 h-5 mr-2" />
             PLAY AGAIN
           </Button>
         </div>
 
-        {/* Motivational Message */}
-        <div className="glass rounded-xl px-6 py-4 inline-block text-sm">
+        {/* Motivational Message - Smaller */}
+        <div className="glass rounded-lg px-4 py-2 inline-block text-xs transition-all duration-200" style={{ backdropFilter: 'blur(8px)' }}>
           <p className="text-muted-foreground">
             {score < 100 ? "Keep practicing! 🚀" : ""}
             {score >= 100 && score < 500 ? "Good job! Try to beat your score! 💫" : ""}
