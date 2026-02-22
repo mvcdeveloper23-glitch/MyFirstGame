@@ -74,6 +74,37 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     };
   }, [gameState, isPaused, soundInitialized]);
 
+  // Countdown Timer - Ticks every second
+  useEffect(() => {
+    if (gameState === 'playing' && !isPaused) {
+      // Start timer
+      timerRef.current = setInterval(() => {
+        gameStatsRef.current.timeRemaining -= 1;
+        onTimeUpdate(gameStatsRef.current.timeRemaining);
+
+        // Time's up!
+        if (gameStatsRef.current.timeRemaining <= 0) {
+          clearInterval(timerRef.current);
+          soundManager.playGameOver();
+          onGameOver(gameStatsRef.current.score, 'timeout');
+        }
+      }, 1000);
+    } else {
+      // Clear timer when paused or not playing
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [gameState, isPaused, onTimeUpdate, onGameOver]);
+
   useEffect(() => {
     const checkMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
