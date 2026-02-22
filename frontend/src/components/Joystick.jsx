@@ -27,7 +27,7 @@ export default function Joystick({ onMove, onStop }) {
       let deltaX = clientX - centerX;
       let deltaY = clientY - centerY;
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-      const maxDistance = rect.width / 2 - 20;
+      const maxDistance = rect.width / 2 - 15;
       if (distance > maxDistance) {
         const angle = Math.atan2(deltaY, deltaX);
         deltaX = Math.cos(angle) * maxDistance;
@@ -76,32 +76,33 @@ export default function Joystick({ onMove, onStop }) {
   }, [onMove, onStop]);
 
   return (
-    <div className="absolute bottom-8 right-8 pointer-events-auto z-50">
+    <div className="absolute bottom-4 right-4 pointer-events-auto z-50">
       <div
         ref={joystickRef}
-        className="relative rounded-full glass border-3 flex items-center justify-center"
+        className="relative rounded-full glass border-2 flex items-center justify-center"
         style={{
-          width: '120px',
-          height: '120px',
+          width: '90px',
+          height: '90px',
           borderColor: 'hsl(var(--secondary))',
           boxShadow: 'var(--shadow-neon-secondary)'
         }}
       >
-        <div className="absolute inset-5 rounded-full bg-muted/20" />
+        <div className="absolute inset-4 rounded-full bg-muted/20" />
         <div className="absolute w-2 h-2 rounded-full bg-secondary/50" />
         <div
           ref={knobRef}
-          className="absolute rounded-full flex items-center justify-center transition-transform"
+          className="absolute rounded-full flex items-center justify-center"
           style={{
-            width: '50px',
-            height: '50px',
+            width: '38px',
+            height: '38px',
             transform: `translate(${knobPosition.x}px, ${knobPosition.y}px)`,
+            transition: 'transform 0.05s ease-out',
             background: 'var(--gradient-secondary)',
             boxShadow: 'var(--shadow-neon-secondary)',
-            border: '3px solid hsl(var(--secondary))'
+            border: '2px solid hsl(var(--secondary))'
           }}
         >
-          <div className="w-3 h-3 rounded-full bg-foreground/80" />
+          <div className="w-2 h-2 rounded-full bg-foreground/80" />
         </div>
       </div>
     </div>

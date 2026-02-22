@@ -15,14 +15,14 @@ export default function ShootButton({ onShoot, onShootEnd }) {
   };
 
   return (
-    <div className="absolute bottom-8 left-8 pointer-events-auto z-50">
+    <div className="absolute bottom-4 left-4 pointer-events-auto z-50">
       <button
-        className={`rounded-full glass border-3 flex items-center justify-center transition-all duration-150 ${
+        className={`rounded-full glass border-2 flex items-center justify-center transition-all duration-100 ${
           isPressed ? 'scale-90' : 'scale-100'
         }`}
         style={{
-          width: '110px',
-          height: '110px',
+          width: '85px',
+          height: '85px',
           background: isPressed ? 'var(--gradient-primary)' : 'var(--gradient-accent)',
           borderColor: isPressed ? 'hsl(var(--primary))' : 'hsl(var(--accent))',
           boxShadow: isPressed ? 'var(--shadow-neon-primary)' : 'var(--shadow-neon-accent)'
@@ -34,8 +34,8 @@ export default function ShootButton({ onShoot, onShootEnd }) {
         onMouseLeave={handleEnd}
       >
         <div className="text-center">
-          <Zap className="w-10 h-10 text-white mx-auto mb-1" fill="currentColor" />
-          <span className="text-xs font-bold text-white">SHOOT</span>
+          <Zap className="w-8 h-8 text-white mx-auto" fill="currentColor" />
+          <span className="text-[9px] font-bold text-white">SHOOT</span>
         </div>
       </button>
     </div>
