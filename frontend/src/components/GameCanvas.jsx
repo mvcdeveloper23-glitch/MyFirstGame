@@ -4,7 +4,7 @@ import ShootButton from './ShootButton';
 import LevelCompleteScreen from './LevelCompleteScreen';
 import soundManager from '../utils/soundManager';
 
-const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onGameOver, onPause, gameState, initialLevel, initialScore }) => {
+const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpdate, onTimeUpdate, onGameOver, onPause, gameState, initialLevel, initialScore, initialTime }) => {
   const canvasRef = useRef(null);
   const gameLoopRef = useRef(null);
   const gameObjectsRef = useRef({
@@ -17,6 +17,7 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
   const keysRef = useRef({});
   const joystickRef = useRef({ x: 0, y: 0 });
   const shootingRef = useRef(false);
+  const timerRef = useRef(null);
   const gameStatsRef = useRef({
     score: initialScore || 0,
     level: initialLevel || 1,
@@ -26,7 +27,8 @@ const GameCanvas = ({ onScoreUpdate, onLevelUpdate, onComboUpdate, onProgressUpd
     levelProgress: 0,
     enemiesKilled: 0,
     enemiesNeededForLevel: 5,
-    lastComboPlayed: 1
+    lastComboPlayed: 1,
+    timeRemaining: initialTime || 30
   });
 
   const [isMobile, setIsMobile] = useState(false);
