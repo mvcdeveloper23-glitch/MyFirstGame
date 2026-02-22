@@ -5,6 +5,7 @@ import StartScreen from './components/StartScreen';
 import GameOverScreen from './components/GameOverScreen';
 import PauseMenu from './components/PauseMenu';
 import SplashScreen from './components/SplashScreen';
+import TimeUpScreen from './components/TimeUpScreen';
 import './App.css';
 
 function App() {
@@ -14,6 +15,8 @@ function App() {
   const [level, setLevel] = useState(1);
   const [combo, setCombo] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(30);
+  const [showTimeUp, setShowTimeUp] = useState(false);
   const [highScore, setHighScore] = useState(() => {
     const saved = localStorage.getItem('highScore');
     return saved ? parseInt(saved, 10) : 0;
@@ -34,17 +37,20 @@ function App() {
         level,
         combo,
         progress,
+        timeRemaining,
         timestamp: new Date().toISOString()
       };
       localStorage.setItem('savedGame', JSON.stringify(gameData));
     }
-  }, [score, level, combo, progress, gameState]);
+  }, [score, level, combo, progress, timeRemaining, gameState]);
 
   const startGame = () => {
     setScore(0);
     setLevel(1);
     setCombo(0);
     setProgress(0);
+    setTimeRemaining(30);
+    setShowTimeUp(false);
     setGameState('playing');
     localStorage.removeItem('savedGame');
   };
@@ -57,6 +63,8 @@ function App() {
       setLevel(gameData.level);
       setCombo(gameData.combo || 0);
       setProgress(gameData.progress || 0);
+      setTimeRemaining(gameData.timeRemaining || 30);
+      setShowTimeUp(false);
       setGameState('playing');
     }
   };
@@ -73,21 +81,33 @@ function App() {
     setScore(0);
     setCombo(0);
     setProgress(0);
+    setTimeRemaining(30 + (level - 1) * 5);
+    setShowTimeUp(false);
     setGameState('playing');
   };
 
   const goToHome = () => {
+    setShowTimeUp(false);
     setGameState('start');
   };
 
-  const endGame = (finalScore) => {
+  const endGame = (finalScore, reason = 'collision') => {
     if (finalScore > highScore) {
       setHighScore(finalScore);
       localStorage.setItem('highScore', finalScore.toString());
     }
     localStorage.removeItem('savedGame');
     setHasSavedGame(false);
-    setGameState('gameover');
+    
+    if (reason === 'timeout') {
+      setShowTimeUp(true);
+      setTimeout(() => {
+        setShowTimeUp(false);
+        setGameState('gameover');
+      }, 2000);
+    } else {
+      setGameState('gameover');
+    }
   };
 
   const updateScore = (points) => {
@@ -96,6 +116,10 @@ function App() {
 
   const updateLevel = (newLevel) => {
     setLevel(newLevel);
+    // Reset timer for new level: 30 + (level-1) * 5
+    // Level 1: 30s, Level 2: 35s, Level 3: 40s, etc.
+    const newTime = 30 + (newLevel - 1) * 5;
+    setTimeRemaining(newTime);
   };
 
   const updateCombo = (newCombo) => {
@@ -104,6 +128,10 @@ function App() {
 
   const updateProgress = (newProgress) => {
     setProgress(newProgress);
+  };
+
+  const updateTimeRemaining = (time) => {
+    setTimeRemaining(time);
   };
 
   if (showSplash) {
@@ -127,17 +155,20 @@ function App() {
             onLevelUpdate={updateLevel}
             onComboUpdate={updateCombo}
             onProgressUpdate={updateProgress}
+            onTimeUpdate={updateTimeRemaining}
             onGameOver={endGame}
             onPause={pauseGame}
             gameState={gameState}
             initialLevel={level}
             initialScore={score}
+            initialTime={timeRemaining}
           />
           <GameUI 
             score={score}
             level={level}
             combo={combo}
             progress={progress}
+            timeRemaining={timeRemaining}
             onPause={pauseGame}
           />
           
@@ -149,6 +180,10 @@ function App() {
               level={level}
               score={score}
             />
+          )}
+
+          {showTimeUp && (
+            <TimeUpScreen />
           )}
         </div>
       )}
